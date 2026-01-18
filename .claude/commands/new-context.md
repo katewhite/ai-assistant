@@ -22,14 +22,14 @@ description: "Sync context files from Granola and Notion to the project's contex
 #### Option 1: Sync All Context (Both Sources)
 
 1. **Run unified sync script**
-   - Run: `cd /Users/katewhite/weekly-notion-sync && source .venv/bin/activate && python sync_all_context.py`
+   - Run: `cd /Users/katewhite/ai-assistant && source .venv/bin/activate && python sync_all_context.py`
    - This runs both Granola and Notion syncs sequentially
    - Displays results for each source
 
 #### Option 2: Sync from Granola Only
 
 1. **Run Granola sync script**
-   - Run: `cd /Users/katewhite/weekly-notion-sync && source .venv/bin/activate && python sync_granola_calls.py`
+   - Run: `cd /Users/katewhite/ai-assistant && source .venv/bin/activate && python sync_granola_calls.py`
    - This fetches all documents from the "Claude Context" folder in Granola
    - For each document:
      - Generates a safe filename from title and date (e.g., `2025-01-15-strategy-chat-with-adam.md`)
@@ -39,7 +39,7 @@ description: "Sync context files from Granola and Notion to the project's contex
 #### Option 3: Sync from Notion Only
 
 1. **Run Notion sync script**
-   - Run: `cd /Users/katewhite/weekly-notion-sync && source .venv/bin/activate && python sync_notion_context.py`
+   - Run: `cd /Users/katewhite/ai-assistant && source .venv/bin/activate && python sync_notion_context.py`
    - This fetches pages from Notion database modified since last sync
    - For each page:
      - Uses Filename property if available, otherwise generates from Title
@@ -57,7 +57,7 @@ description: "Sync context files from Granola and Notion to the project's contex
 
 ```
 📂 Syncing calls from Granola folder: 'Claude Context'
-📁 Target directory: /Users/katewhite/weekly-notion-sync/.claude/context/calls
+📁 Target directory: /Users/katewhite/ai-assistant/.claude/context/calls
 
 Found 3 document(s) in folder
 
@@ -81,7 +81,7 @@ Total: 3 | Synced: 2 | Skipped: 1 | Errors: 0
 
 ```
 📂 Syncing context files from Notion database
-📁 Target directory: /Users/katewhite/weekly-notion-sync/.claude/context/core
+📁 Target directory: /Users/katewhite/ai-assistant/.claude/context/core
 
 📅 Last sync: 2025-01-10 14:30:00
    Fetching pages modified since then...
@@ -107,7 +107,7 @@ Last sync time updated to: 2025-01-15 10:30:00 UTC
 ### Key Implementation Notes
 
 **Granola Sync:**
-- Uses the virtual environment at `/Users/katewhite/weekly-notion-sync/.venv`
+- Uses the virtual environment at `/Users/katewhite/ai-assistant/.venv`
 - Files are saved to `.claude/context/calls/` directory
 - Filenames are generated from date and title (slugified)
 - Deduplication is based on `granola_id` in frontmatter
@@ -166,7 +166,7 @@ filename: "document-title.md"
 
 ### Environment
 
-- Working directory: `/Users/katewhite/weekly-notion-sync`
+- Working directory: `/Users/katewhite/ai-assistant`
 - Python virtual environment: `.venv`
 - Granola cache: `~/Library/Application Support/Granola/cache-v3.json`
 - Target folder in Granola: "Claude Context"

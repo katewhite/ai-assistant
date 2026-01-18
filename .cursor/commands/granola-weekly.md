@@ -15,7 +15,7 @@ description: "Generate a comprehensive weekly summary from Granola meeting notes
 ### Complete Workflow
 
 1. **Load meetings from Granola**
-   - Run: `cd /Users/katewhite/weekly-notion-sync && source .venv/bin/activate && python run_summary.py`
+   - Run: `cd /Users/katewhite/ai-assistant && source .venv/bin/activate && python run_summary.py`
    - This fetches meetings from the last Friday through today
    - Generates a prompt file at `/tmp/granola_summary_prompt.txt`
    - Expected: 15-25 meetings typically
@@ -74,7 +74,7 @@ description: "Generate a comprehensive weekly summary from Granola meeting notes
 
 ### Key Implementation Notes
 
-- Use the virtual environment at `/Users/katewhite/weekly-notion-sync/.venv`
+- Use the virtual environment at `/Users/katewhite/ai-assistant/.venv`
 - The prompt file can be large (300KB+), read it in chunks if needed
 - Customer calls should ONLY count external businesses (customers), not vendors or internal calls
 - All features in Product Development Focus should be included, even if brief
@@ -94,7 +94,7 @@ Simply execute all steps in sequence and report the final Notion URL.
 
 ### Environment
 
-- Working directory: `/Users/katewhite/weekly-notion-sync`
+- Working directory: `/Users/katewhite/ai-assistant`
 - Python virtual environment: `.venv`
 - Granola cache: `~/Library/Application Support/Granola/cache-v3.json`
 - Notion API key: In `config.py` or environment variable
