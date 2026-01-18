@@ -1,0 +1,7 @@
+One piece of advice I received a couple times (grain of salt) is that I need to be thinking bigger
+Even if we captured 100% of rebuy ($50M) and aftersell ($10M?) and all the other A/B testing tools in the shopify ecosystem, we're still only 1/10 the size of Klaviyo
+But if we could take the things humans do (i.e. CRO, or "profit growth") and automate that (i.e. an AI agent), there is a ton of value there ($1B? more?) Also this feels more transferable to stacks and domains beyond shopify or even ecommerce.
+So this 100% resonates with me and is a better version of what I've been trying to articulate the last couple days: "2026 should be our true AI-first year, turning Intelligems into our customers’ personal profit growth expert"
+On the stages/layers (not horizons, lol) to get there:
+Should we be trying to consolidate / control all the profit levers first? Or actually can build automation/AI more narrowly before we actually win all the surface area?  I can buy either strategy, I'm not sure... maybe both for now?
+Related, does "platform" mean that we have consolidated all the tools into one platform (us)? Or maybe it's that we're exposing APIs for 3rd parties to build on top of? Is it both? Do those contradict?
