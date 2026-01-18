@@ -4,8 +4,8 @@ from pathlib import Path
 # Granola cache path
 GRANOLA_CACHE_PATH = Path.home() / "Library/Application Support/Granola/cache-v3.json"
 
-# Notion config (get from environment variable or hardcode)
-# To use environment variable: export NOTION_API_KEY="your_key_here"
+# Notion config (get from environment variable)
+# To use: export NOTION_API_KEY="your_key_here"
 NOTION_API_KEY = os.getenv("NOTION_API_KEY")
 if not NOTION_API_KEY:
     raise ValueError("NOTION_API_KEY environment variable is required")
