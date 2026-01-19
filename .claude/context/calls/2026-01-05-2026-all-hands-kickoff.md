@@ -9,6 +9,8 @@ granola_id: "a275aae1-8b4f-44a3-b90c-1e8c070c1f8c"
 
 **Attendees:** Kate, 15 Maiden Lane-9-Conference Room (12), Dooley, Donald, Mike Messbauer, Kim Stiefel, Ben, Ethan, Mara, Jacinta Jeyaram, Drew, Vince, Mike, Sarah, Devlin, Craig, Christos, Alex McEachern, Claire, Gustavo, Katrine, Michael Shames, Mihai, Denver-Wework-3-Office Chromebook (4)
 
+Mostly Drew speaking
+
 <hr>
 
 ## Notes
