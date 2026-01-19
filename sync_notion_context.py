@@ -83,6 +83,7 @@ def create_context_file(page, core_dir):
     page_id = page["id"]
     title = page["title"]
     filename_hint = page.get("filename")
+    original_url = page.get("original_url")
     last_modified = page["last_modified"]
     url = page["url"]
     content = page.get("content", "")
@@ -117,11 +118,26 @@ def create_context_file(page, core_dir):
     if filename_hint:
         lines.append(f'filename: "{filename_hint.replace('"', '\\"')}"')
     
+    if original_url:
+        lines.append(f'original_url: "{original_url.replace('"', '\\"')}"')
+    
     lines.extend([
         "---",
         "",
     ]
     )
+    
+    # Add visible metadata section with clickable links
+    # Format as regular markdown content right after frontmatter
+    if original_url:
+        lines.append(f"**Original URL:** [{original_url}]({original_url})")
+        lines.append("")
+    lines.append(f"**My Notion URL:** [{url}]({url})")
+    lines.append("")
+    lines.append(f"**Last Modified:** {last_modified_str}")
+    lines.append("")
+    lines.append("<hr>")
+    lines.append("")
     
     # Add content
     if content:

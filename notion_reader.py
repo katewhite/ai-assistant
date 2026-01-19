@@ -323,6 +323,16 @@ def get_notion_pages_modified_since(database_id, since_date, notion_api_key=None
                         filename_rich_text = filename_prop.get("title", [])
                         filename = "".join([rt.get("plain_text", "") for rt in filename_rich_text]).strip()
                 
+                # Get original URL (optional)
+                original_url_prop = properties.get("original URL", {}) or properties.get("Original URL", {})
+                original_url = None
+                if original_url_prop:
+                    if original_url_prop.get("type") == "url":
+                        original_url = original_url_prop.get("url", "").strip()
+                    elif original_url_prop.get("type") == "rich_text":
+                        original_url_rich_text = original_url_prop.get("rich_text", [])
+                        original_url = "".join([rt.get("plain_text", "") for rt in original_url_rich_text]).strip()
+                
                 # Get page ID and URL
                 page_id = page.get("id", "")
                 page_url = page.get("url", "")
@@ -334,6 +344,7 @@ def get_notion_pages_modified_since(database_id, since_date, notion_api_key=None
                     "id": page_id,
                     "title": title,
                     "filename": filename,
+                    "original_url": original_url,
                     "last_modified": last_modified,
                     "url": page_url,
                     "content": content

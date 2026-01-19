@@ -1,14 +1,18 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env file if it exists
+load_dotenv()
 
 # Granola cache path
 GRANOLA_CACHE_PATH = Path.home() / "Library/Application Support/Granola/cache-v3.json"
 
-# Notion config (get from environment variable)
-# To use: export NOTION_API_KEY="your_key_here"
+# Notion config (get from environment variable or .env file)
+# To use: export NOTION_API_KEY="your_key_here" or add to .env file
 NOTION_API_KEY = os.getenv("NOTION_API_KEY")
 if not NOTION_API_KEY:
-    raise ValueError("NOTION_API_KEY environment variable is required")
+    raise ValueError("NOTION_API_KEY environment variable is required. Add it to .env file or export it.")
 NOTION_DATABASE_ID = "24394399495980dbaae5d60a00d17b27"
 
 # Notion context database (for syncing context files)

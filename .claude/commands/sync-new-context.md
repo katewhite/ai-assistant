@@ -123,7 +123,7 @@ Last sync time updated to: 2025-01-15 10:30:00 UTC
 - Only syncs pages modified since last sync (tracked in `.notion_sync_state.json`)
 - Deduplication is based on `notion_id` in frontmatter
 - Each file includes:
-  - Frontmatter with metadata (title, filename, notion_url, notion_id, last_modified)
+  - Frontmatter with metadata (title, filename, original_url, notion_url, notion_id, last_modified)
   - Full page content (converted from Notion blocks to markdown)
 - Files are updated if the Notion page has been modified
 
@@ -159,7 +159,16 @@ last_modified: 2025-01-15 10:30:00 UTC
 notion_url: "https://www.notion.so/[page-id]"
 notion_id: "[page-id]"
 filename: "document-title.md"
+original_url: "https://example.com/original-source"
 ---
+
+**Original URL:** [https://example.com/original-source](https://example.com/original-source)
+
+**My Notion URL:** [https://www.notion.so/[page-id]](https://www.notion.so/[page-id])
+
+**Last Modified:** 2025-01-15 10:30:00 UTC
+
+<hr>
 
 [Page content converted to markdown...]
 ```
@@ -209,6 +218,7 @@ filename: "document-title.md"
 The Notion database should have these properties:
 - **Title** (title) - Page title
 - **Filename** (rich_text) - Optional explicit filename (if not provided, derived from Title)
+- **original URL** (url or rich_text) - Optional URL to the original source
 - **Last Modified** (last_edited_time) - Automatically tracked by Notion
 
 Set the database ID in `config.py` as `NOTION_CONTEXT_DATABASE_ID`.
