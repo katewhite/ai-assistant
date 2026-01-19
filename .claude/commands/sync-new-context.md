@@ -139,6 +139,10 @@ granola_url: "https://notes.granola.ai/d/[doc-id]"
 granola_id: "[doc-id]"
 ---
 
+**Granola URL:** [https://notes.granola.ai/d/[doc-id]](https://notes.granola.ai/d/[doc-id])
+
+<hr>
+
 ## Transcript
 
 [Full transcript text...]

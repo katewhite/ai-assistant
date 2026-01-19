@@ -6,7 +6,7 @@ Sync call transcripts from Granola "Claude Context" folder to .claude/context/ca
 import re
 from pathlib import Path
 from datetime import datetime
-from granola_reader import get_documents_in_folder
+from granola_reader import get_documents_in_folder, load_granola_cache
 
 # Paths
 PROJECT_ROOT = Path(__file__).parent
@@ -61,6 +61,73 @@ def generate_filename(title, date_str, doc_id):
     return filename
 
 
+def extract_attendees(doc_id):
+    """Extract attendee list from a Granola document."""
+    try:
+        cache_data = load_granola_cache()
+        state = cache_data.get("cache", {}).get("state", {})
+        documents = state.get("documents", {})
+        
+        if doc_id not in documents:
+            return []
+        
+        doc = documents[doc_id]
+        if not isinstance(doc, dict):
+            return []
+        
+        people = doc.get("people", {})
+        if not isinstance(people, dict):
+            return []
+        
+        attendees_list = []
+        creator = people.get("creator", {})
+        attendees = people.get("attendees", [])
+        
+        # Helper function to extract name and email
+        def extract_person_info(person_dict):
+            if not isinstance(person_dict, dict):
+                return None, None
+            
+            email = person_dict.get("email", "")
+            name = None
+            details = person_dict.get("details", {})
+            if isinstance(details, dict):
+                person_info = details.get("person", {})
+                if isinstance(person_info, dict):
+                    name_obj = person_info.get("name", {})
+                    if isinstance(name_obj, dict):
+                        name = name_obj.get("fullName") or name_obj.get("givenName")
+            
+            if not name and email:
+                name = email.split("@")[0].capitalize()
+            
+            return name, email
+        
+        # Add creator first
+        if creator:
+            name, email = extract_person_info(creator)
+            if name and email:
+                attendees_list.append({"name": name, "email": email})
+        
+        # Add attendees (avoid duplicates)
+        if isinstance(attendees, list):
+            for attendee in attendees:
+                if isinstance(attendee, dict):
+                    details = attendee.get("details", {})
+                    if isinstance(details, dict) and details.get("group"):
+                        continue
+                    
+                    name, email = extract_person_info(attendee)
+                    if name and email:
+                        # Check if already in list
+                        if not any(a.get("email") == email for a in attendees_list):
+                            attendees_list.append({"name": name, "email": email})
+        
+        return attendees_list
+    except Exception:
+        return []
+
+
 def file_exists_for_doc(doc_id, calls_dir):
     """Check if a file already exists for this document ID."""
     for file in calls_dir.iterdir():
@@ -113,22 +180,39 @@ def create_call_file(doc, calls_dir):
         "",
     ]
     
-    # Add transcript
-    if transcript:
-        lines.append("## Transcript")
-        lines.append("")
-        lines.append(transcript)
+    # Add visible metadata after frontmatter
+    lines.append(f"**Granola URL:** [{url}]({url})")
+    lines.append("")
+    
+    # Add attendee list
+    attendees = extract_attendees(doc_id)
+    if attendees:
+        attendee_names = [a["name"] for a in attendees]
+        lines.append(f"**Attendees:** {', '.join(attendee_names)}")
         lines.append("")
     
-    # Add notes if available
+    lines.append("<hr>")
+    lines.append("")
+    
+    # Always add notes section first
+    lines.append("## Notes")
+    lines.append("")
     if notes:
-        if transcript:
-            lines.append("---")
-            lines.append("")
-        lines.append("## Notes")
-        lines.append("")
         lines.append(notes)
-        lines.append("")
+    else:
+        lines.append("(No notes available)")
+    lines.append("")
+    
+    # Always add transcript section
+    lines.append("---")
+    lines.append("")
+    lines.append("## Transcript")
+    lines.append("")
+    if transcript:
+        lines.append(transcript)
+    else:
+        lines.append("(No transcript available)")
+    lines.append("")
     
     # Write file
     content = "\n".join(lines)

@@ -143,6 +143,63 @@ def extract_text_from_panel_content(content_dict):
     return result
 
 
+def extract_markdown_from_content(content_dict):
+    """Extract markdown-formatted text from Granola's content structure, preserving formatting."""
+    if not isinstance(content_dict, dict):
+        return ""
+    
+    # If content is already a markdown string, return it
+    if isinstance(content_dict, str):
+        return content_dict
+    
+    markdown_parts = []
+    
+    def extract_recursive(obj, indent_level=0):
+        if isinstance(obj, dict):
+            # Check for markdown field first
+            if 'markdown' in obj:
+                markdown_parts.append(str(obj['markdown']))
+                return
+            
+            # Check for text with formatting
+            if 'text' in obj:
+                text = str(obj['text'])
+                # Check for formatting hints
+                if obj.get('bold'):
+                    text = f"**{text}**"
+                if obj.get('italic'):
+                    text = f"*{text}*"
+                if obj.get('code'):
+                    text = f"`{text}`"
+                markdown_parts.append(text)
+            
+            # Handle content list (preserve structure)
+            if 'content' in obj and isinstance(obj['content'], list):
+                for item in obj['content']:
+                    extract_recursive(item, indent_level)
+            # Handle blocks/children structure
+            elif 'blocks' in obj and isinstance(obj['blocks'], list):
+                for block in obj['blocks']:
+                    extract_recursive(block, indent_level)
+            elif 'children' in obj and isinstance(obj['children'], list):
+                for child in obj['children']:
+                    extract_recursive(child, indent_level)
+        elif isinstance(obj, list):
+            for item in obj:
+                extract_recursive(item, indent_level)
+    
+    extract_recursive(content_dict)
+    
+    # Join with newlines to preserve structure
+    result = '\n'.join(markdown_parts).strip()
+    
+    # Clean up excessive blank lines but preserve intentional spacing
+    import re
+    result = re.sub(r'\n{3,}', '\n\n', result)
+    
+    return result
+
+
 def extract_ai_content_from_panels(doc_id, document_panels):
     """Extract AI-generated content from document panels."""
     if doc_id not in document_panels:
@@ -173,19 +230,34 @@ def extract_ai_content_from_panels(doc_id, document_panels):
 def extract_enhanced_notes(doc_id, doc, document_panels):
     """
     Extract enhanced notes combining manual notes AND AI-generated panel content.
+    Preserves markdown formatting when available.
     """
     if not isinstance(doc, dict):
         return ""
 
     combined_content = []
 
-    # Strategy 1: Get manual notes first
+    # Strategy 1: Get manual notes first (prefer markdown)
     manual_notes = ""
+    
+    # Try notes_markdown first (should preserve formatting)
     if 'notes_markdown' in doc:
         value = doc['notes_markdown']
         if isinstance(value, str) and value.strip():
             manual_notes = value.strip()
-
+        # If it's a dict, try to extract markdown from structure
+        elif isinstance(value, dict):
+            manual_notes = extract_markdown_from_content(value).strip()
+    
+    # Try notes_content (structured content that might contain markdown)
+    if not manual_notes and 'notes_content' in doc:
+        value = doc['notes_content']
+        if isinstance(value, dict):
+            manual_notes = extract_markdown_from_content(value).strip()
+        elif isinstance(value, str) and value.strip():
+            manual_notes = value.strip()
+    
+    # Fallback to notes_plain (but this won't have markdown)
     if not manual_notes and 'notes_plain' in doc:
         value = doc['notes_plain']
         if isinstance(value, str) and value.strip():
@@ -211,12 +283,25 @@ def extract_enhanced_notes(doc_id, doc, document_panels):
     # Strategy 4: Check summary as final fallback
     if 'summary' in doc:
         summary = doc['summary']
-        if isinstance(summary, dict) and 'text' in summary:
-            summary_text = summary['text']
-            if isinstance(summary_text, str):
-                cleaned_value = summary_text.strip()
-                if cleaned_value:
-                    return cleaned_value
+        if isinstance(summary, dict):
+            # Try to extract markdown from structured summary
+            if 'markdown' in summary:
+                summary_text = summary['markdown']
+                if isinstance(summary_text, str):
+                    cleaned_value = summary_text.strip()
+                    if cleaned_value:
+                        return cleaned_value
+            elif 'text' in summary:
+                summary_text = summary['text']
+                if isinstance(summary_text, str):
+                    cleaned_value = summary_text.strip()
+                    if cleaned_value:
+                        return cleaned_value
+            # Try content structure
+            elif 'content' in summary:
+                extracted = extract_markdown_from_content(summary)
+                if extracted.strip():
+                    return extracted.strip()
         elif isinstance(summary, str):
             cleaned_value = summary.strip()
             if cleaned_value:
@@ -225,23 +310,158 @@ def extract_enhanced_notes(doc_id, doc, document_panels):
     return ""
 
 
-def extract_transcript(doc_id, transcripts):
-    """Extract transcript text for a document."""
+def extract_transcript(doc_id, transcripts, doc=None, state=None):
+    """Extract transcript text for a document with speaker labels based on source field."""
     if doc_id not in transcripts:
         return ""
 
     transcript_data = transcripts[doc_id]
+    
+    # Get attendee information from document
+    real_attendees = []
+    other_attendee_name = None
+    KATE_EMAIL = "kate@intelligems.io"  # Kate's email to identify her
+    
+    if doc and isinstance(doc, dict):
+        people = doc.get("people", {})
+        
+        if isinstance(people, dict):
+            # Get attendees list
+            attendees = people.get("attendees", [])
+            # Also get creator (Kate is often the creator, not in attendees)
+            creator = people.get("creator", {})
+            
+            # Helper function to extract name and email from attendee/creator structure
+            def extract_person_info(person_dict):
+                """Extract name and email from person structure."""
+                if not isinstance(person_dict, dict):
+                    return None, None
+                
+                # Try to get email
+                email = person_dict.get("email", "")
+                
+                # Try to get name from various possible locations
+                name = None
+                details = person_dict.get("details", {})
+                if isinstance(details, dict):
+                    person_info = details.get("person", {})
+                    if isinstance(person_info, dict):
+                        name_obj = person_info.get("name", {})
+                        if isinstance(name_obj, dict):
+                            # Prefer givenName (first name) over fullName
+                            name = name_obj.get("givenName") or name_obj.get("fullName")
+                
+                # Fallback to email if no name found
+                if not name and email:
+                    name = email.split("@")[0].capitalize()
+                
+                return name, email
+            
+            # Process creator first (if exists)
+            if creator:
+                name, email = extract_person_info(creator)
+                if name and email:
+                    real_attendees.append({
+                        "email": email,
+                        "name": name
+                    })
+            
+            # Process attendees list
+            if isinstance(attendees, list):
+                for attendee in attendees:
+                    if isinstance(attendee, dict):
+                        details = attendee.get("details", {})
+                        if isinstance(details, dict):
+                            # Skip groups
+                            if details.get("group"):
+                                continue
+                        
+                        name, email = extract_person_info(attendee)
+                        if name and email:
+                            # Check if this person is already in the list (avoid duplicates)
+                            if not any(a.get("email") == email for a in real_attendees):
+                                real_attendees.append({
+                                    "email": email,
+                                    "name": name
+                                })
+            
+            # If exactly 2 attendees, find the other attendee (not Kate)
+            if len(real_attendees) == 2:
+                for attendee in real_attendees:
+                    attendee_email = attendee.get("email", "").lower()
+                    # Compare emails to identify Kate
+                    if attendee_email != KATE_EMAIL.lower():
+                        other_attendee_name = attendee["name"]
+                        break
+                
+                # Fallback: if we still haven't found the other attendee, use the first one
+                if not other_attendee_name and len(real_attendees) > 0:
+                    # Use the first attendee that's not Kate
+                    for attendee in real_attendees:
+                        if attendee.get("email", "").lower() != KATE_EMAIL.lower():
+                            other_attendee_name = attendee["name"]
+                            break
+                    # If still not found, just use first attendee
+                    if not other_attendee_name:
+                        other_attendee_name = real_attendees[0]["name"]
 
     if isinstance(transcript_data, list):
         transcript_parts = []
+        
         for segment in transcript_data:
             if isinstance(segment, dict):
+                # Get the source field
+                source = segment.get("source", "").lower() if segment.get("source") else None
+                
+                # Get text content
                 text = segment.get("text", "") or segment.get("content", "") or segment.get("transcript", "")
+                
                 if text:
-                    transcript_parts.append(str(text))
+                    text_str = str(text).strip()
+                    if text_str:
+                        # Determine speaker label based on source
+                        speaker_label = None
+                        
+                        if source == "microphone":
+                            # Kate's microphone
+                            speaker_label = "Kate"
+                        elif source == "system":
+                            # Other attendee(s)
+                            if len(real_attendees) == 2:
+                                # Exactly 2 attendees, use the other attendee's name
+                                # First try to use other_attendee_name if it was set
+                                if other_attendee_name:
+                                    speaker_label = other_attendee_name
+                                
+                                # If speaker_label not set yet, find the other attendee directly
+                                if not speaker_label:
+                                    for attendee in real_attendees:
+                                        attendee_email = attendee.get("email", "").lower()
+                                        if attendee_email != KATE_EMAIL.lower():
+                                            speaker_label = attendee["name"]
+                                            break
+                                
+                                # Final fallback
+                                if not speaker_label:
+                                    speaker_label = "Other attendee"
+                            elif len(real_attendees) > 2:
+                                # More than 2 attendees, use generic label
+                                speaker_label = "Other attendee"
+                            else:
+                                # Fallback if we can't determine
+                                speaker_label = "Other attendee"
+                        
+                        # Format with speaker label if available
+                        if speaker_label:
+                            transcript_parts.append(f"**{speaker_label}:** {text_str}")
+                        else:
+                            # No source field or unknown source, just add text
+                            transcript_parts.append(text_str)
             elif isinstance(segment, str):
                 transcript_parts.append(segment)
-        return " ".join(transcript_parts)
+        
+        # Join with double newlines to separate speaker turns
+        return "\n\n".join(transcript_parts)
     elif isinstance(transcript_data, str):
         return transcript_data
     elif isinstance(transcript_data, dict):
@@ -356,7 +576,7 @@ def get_meetings_in_range(start_date=None, end_date=None):
             if start_date <= created_dt <= end_date:
                 title = doc.get("title", "Untitled")
                 notes = extract_enhanced_notes(doc_id, doc, document_panels)
-                transcript = extract_transcript(doc_id, transcripts)
+                transcript = extract_transcript(doc_id, transcripts, doc, state)
                 has_external, attendee_count = has_external_attendees(doc)
 
                 meetings.append({
@@ -474,7 +694,7 @@ def get_documents_in_folder(folder_name):
                 date_str = "Unknown date"
 
             notes = extract_enhanced_notes(doc_id, doc, document_panels)
-            transcript = extract_transcript(doc_id, transcripts)
+            transcript = extract_transcript(doc_id, transcripts, doc, state)
 
             result.append({
                 "id": doc_id,
