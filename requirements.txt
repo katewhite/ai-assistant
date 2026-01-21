@@ -7,3 +7,6 @@ idna==3.11
 notion-client==2.2.1
 python-dateutil==2.9.0
 six==1.17.0
+slack-sdk==3.27.1
+python-dotenv==1.0.0
+anthropic==0.34.2

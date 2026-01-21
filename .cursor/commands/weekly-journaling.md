@@ -1,14 +1,14 @@
 ---
-description: "Generate a comprehensive weekly summary from Granola meeting notes and upload to Notion automatically"
+description: "Generate a comprehensive weekly journaling summary from Granola meeting notes and upload to Notion automatically"
 ---
 
-# Granola Weekly Summary
+# Weekly Journaling
 
-## Task: Weekly Granola Summary
+## Task: Weekly Journaling
 
-**Trigger phrase:** "generate my weekly granola summary" or "Execute the weekly Granola summary task"
+**Trigger phrase:** "generate my weekly journaling" or "generate my weekly journal" or "Execute the weekly journaling task"
 
-**Description:** Generate a comprehensive weekly summary from Granola meeting notes and upload to Notion automatically.
+**Description:** Generate a comprehensive weekly journaling summary from Granola meeting notes and upload to Notion automatically. This includes both your career timeline summary and direct report feedback tracking.
 
 **Important:** This task should run completely automatically without requiring any user approvals or confirmations. Complete all steps in sequence without stopping.
 
@@ -36,14 +36,25 @@ description: "Generate a comprehensive weekly summary from Granola meeting notes
      - Notable Recurring Meetings (Tech Team Retro, Weekly Team Meeting)
    - Save summary to `/tmp/weekly_summary.md`
 
-3. **Extract metadata**
+3. **Generate direct reports notes**
+   - Generate separate direct reports feedback notes using the same meeting data
+   - Focus on performance review moments with Hannah and Jerica
+   - Categorize entries with tags: [Win], [Coaching], [Growth], [Challenge], [Initiative]
+   - Save to `/tmp/direct_reports_notes.md`
+
+4. **Extract metadata**
    - Parse the generated summary to extract:
      - HIGH-LEVEL SUMMARY text (before the --- separator)
      - Feature names from "Product Development Focus" section
      - Customer call count from "Customer Calls" section
    - Get week metadata (start date, end date, week label)
 
-4. **Upload to Notion**
+5. **Update direct reports pages**
+   - Parse direct reports notes and update individual Notion pages for Hannah and Jerica
+   - Add entries in reverse chronological order, grouped by month/quarter
+   - Update pages under the parent page: Weekly Direct Reports Notes
+
+6. **Upload to Notion**
    - Run the upload_to_notion function with:
      - Summary content (with HIGH-LEVEL SUMMARY removed)
      - Week label
@@ -55,21 +66,24 @@ description: "Generate a comprehensive weekly summary from Granola meeting notes
    - Function will either create new page or update existing page for this week
    - Return Notion page URL
 
-5. **Completion**
-   - Display success message with Notion URL
+7. **Completion**
+   - Display success message with Notion URLs
    - Clean up temporary files
 
 ### Expected Output
 
 ```
-🔄 Generating weekly Granola summary...
+🔄 Generating weekly journaling...
 📅 Loading meetings from Granola... [✓]
-🤖 Generating AI summary... [✓]
+🤖 Generating weekly summary... [✓]
+👥 Generating direct reports notes... [✓]
 🔍 Extracting metadata... [✓]
+📝 Updating direct reports pages... [✓]
 ☁️  Uploading to Notion... [✓]
 
-✅ SUCCESS! Your weekly summary is in Notion:
-   https://www.notion.so/[page-id]
+✅ SUCCESS! Your weekly journaling is complete:
+   Weekly Summary: https://www.notion.so/[page-id]
+   Direct Reports: Updated pages for Hannah and Jerica
 ```
 
 ### Key Implementation Notes
@@ -79,6 +93,7 @@ description: "Generate a comprehensive weekly summary from Granola meeting notes
 - Customer calls should ONLY count external businesses (customers), not vendors or internal calls
 - All features in Product Development Focus should be included, even if brief
 - Every internal collaborator should be listed in Cross-Functional Collaboration
+- Direct reports notes are generated separately and tracked in dedicated Notion pages
 - Use TodoWrite tool to track progress through the steps
 - If any step fails, report the error clearly but don't stop - try to complete as much as possible
 
@@ -90,7 +105,7 @@ This task is designed to run automatically. Do NOT:
 - Stop and wait between steps
 - Ask if the user wants to continue
 
-Simply execute all steps in sequence and report the final Notion URL.
+Simply execute all steps in sequence and report the final Notion URLs.
 
 ### Environment
 
@@ -99,19 +114,23 @@ Simply execute all steps in sequence and report the final Notion URL.
 - Granola cache: `~/Library/Application Support/Granola/cache-v3.json`
 - Notion API key: In `config.py` or environment variable
 - Notion database ID: `24394399495980dbaae5d60a00d17b27`
+- Direct reports parent page ID: `2ee94399495980fdae61e45a717281e9`
 
 ### Files Used
 
 - `run_summary.py` - Fetches meetings and generates prompt
 - `granola_reader.py` - Reads Granola cache and extracts meetings
-- `prompt_template.py` - Contains summary template
+- `prompt_template.py` - Contains summary and direct reports templates
 - `notion_helper.py` - Uploads to Notion
+- `direct_reports_helper.py` - Handles direct reports page updates
 - `config.py` - Configuration (API keys, database IDs)
 
 ### Success Criteria
 
 Task is complete when:
 1. Summary is generated following the template exactly
-2. Metadata is extracted correctly
-3. Page is created/updated in Notion
-4. User receives the Notion URL
+2. Direct reports notes are generated and categorized
+3. Metadata is extracted correctly
+4. Direct reports pages are updated in Notion
+5. Weekly summary page is created/updated in Notion
+6. User receives the Notion URLs

@@ -274,12 +274,12 @@ def find_existing_page_for_week(notion, database_id, week_start_date):
 def upload_to_notion(summary_markdown, week_label, week_start_date, reflection_date=None, customer_call_count=0, notes_summary="", features=None, notion_api_key=NOTION_API_KEY, database_id=NOTION_DATABASE_ID):
     """
     Upload weekly summary to Notion database.
-    Creates a new page or updates existing page if one already exists for this week.
+    Always creates a new page (does not update existing pages).
 
     Args:
         summary_markdown: str - The markdown formatted summary
-        week_label: str - e.g., "Week of Nov 28 - Dec 5"
-        week_start_date: datetime - The Friday that starts this week (used for finding existing pages)
+        week_label: str - e.g., "Week of Jan 9 - Jan 16"
+        week_start_date: datetime - The Friday that starts this week
         reflection_date: datetime - The date the summary was created (optional, defaults to today)
         customer_call_count: int - Number of customer calls this week
         notes_summary: str - 2-3 sentence high-level summary of the week
@@ -288,7 +288,7 @@ def upload_to_notion(summary_markdown, week_label, week_start_date, reflection_d
         database_id: str - Notion database ID (optional, uses config if not provided)
 
     Returns:
-        str: URL of the created/updated Notion page
+        str: URL of the created Notion page
 
     Raises:
         ValueError: If API key is not set
@@ -315,117 +315,59 @@ def upload_to_notion(summary_markdown, week_label, week_start_date, reflection_d
         excluded = [f for f in features if f not in existing_features]
         print(f"Note: Excluded non-existent features: {excluded}")
 
-    # Check if page already exists for this week
-    existing_page_id = find_existing_page_for_week(notion, database_id, week_start_date)
-
+    # Always create a new page (don't update existing ones)
     try:
-        if existing_page_id:
-            # Update existing page
-            print(f"Updating existing page: {existing_page_id}")
+        # Create new page
+        print(f"Creating new page: {week_label}")
 
-            # Update page properties (title, reflection date, customer calls, notes)
-            reflection_date_str = reflection_date.strftime("%Y-%m-%d")
+        # Format reflection date for Notion
+        reflection_date_str = reflection_date.strftime("%Y-%m-%d")
 
-            properties = {
-                "Name": {
-                    "title": [{"text": {"content": week_label}}]
-                },
-                "Reflection Date": {
-                    "date": {"start": reflection_date_str}
-                }
+        properties = {
+            "Name": {
+                "title": [{"text": {"content": week_label}}]
+            },
+            "Reflection Date": {
+                "date": {"start": reflection_date_str}
+            }
+        }
+
+        # Add customer call count if provided
+        if customer_call_count > 0:
+            properties["Customer Calls"] = {"number": customer_call_count}
+
+        # Add notes summary if provided
+        if notes_summary:
+            properties["Notes"] = {"rich_text": [{"text": {"content": notes_summary}}]}
+
+        # Add features if provided
+        if valid_features:
+            properties["Features"] = {
+                "multi_select": [{"name": feature} for feature in valid_features]
             }
 
-            # Add customer call count if provided
-            if customer_call_count > 0:
-                properties["Customer Calls"] = {"number": customer_call_count}
+        new_page = notion.pages.create(
+            parent={"database_id": database_id},
+            properties=properties,
+            children=blocks[:100]  # Notion API limit: 100 blocks per request
+        )
 
-            # Add notes summary if provided
-            if notes_summary:
-                properties["Notes"] = {"rich_text": [{"text": {"content": notes_summary}}]}
+        # If more than 100 blocks, add them in batches
+        if len(blocks) > 100:
+            page_id = new_page["id"]
+            remaining_blocks = blocks[100:]
 
-            # Add features if provided
-            if valid_features:
-                properties["Features"] = {
-                    "multi_select": [{"name": feature} for feature in valid_features]
-                }
-
-            notion.pages.update(page_id=existing_page_id, properties=properties)
-
-            # Delete all existing blocks first
-            print("Clearing old content...")
-            try:
-                existing_blocks = notion.blocks.children.list(block_id=existing_page_id)
-                for block in existing_blocks.get("results", []):
-                    notion.blocks.delete(block_id=block["id"])
-                    time.sleep(0.05)  # Rate limiting
-            except Exception as e:
-                print(f"Warning: Could not clear old blocks: {e}")
-
-            # Add new blocks
-            print("Adding new content...")
-            for block in blocks:
+            for i in range(0, len(remaining_blocks), 100):
+                batch = remaining_blocks[i:i+100]
                 notion.blocks.children.append(
-                    block_id=existing_page_id,
-                    children=[block]
+                    block_id=page_id,
+                    children=batch
                 )
-                time.sleep(0.1)  # Rate limiting
+                time.sleep(0.3)  # Rate limiting
 
-            page_url = f"https://www.notion.so/{existing_page_id.replace('-', '')}"
-            print(f"✅ Updated Notion page: {page_url}")
-            return page_url
-
-        else:
-            # Create new page
-            print(f"Creating new page: {week_label}")
-
-            # Format reflection date for Notion
-            reflection_date_str = reflection_date.strftime("%Y-%m-%d")
-
-            properties = {
-                "Name": {
-                    "title": [{"text": {"content": week_label}}]
-                },
-                "Reflection Date": {
-                    "date": {"start": reflection_date_str}
-                }
-            }
-
-            # Add customer call count if provided
-            if customer_call_count > 0:
-                properties["Customer Calls"] = {"number": customer_call_count}
-
-            # Add notes summary if provided
-            if notes_summary:
-                properties["Notes"] = {"rich_text": [{"text": {"content": notes_summary}}]}
-
-            # Add features if provided
-            if valid_features:
-                properties["Features"] = {
-                    "multi_select": [{"name": feature} for feature in valid_features]
-                }
-
-            new_page = notion.pages.create(
-                parent={"database_id": database_id},
-                properties=properties,
-                children=blocks[:100]  # Notion API limit: 100 blocks per request
-            )
-
-            # If more than 100 blocks, add them in batches
-            if len(blocks) > 100:
-                page_id = new_page["id"]
-                remaining_blocks = blocks[100:]
-
-                for i in range(0, len(remaining_blocks), 100):
-                    batch = remaining_blocks[i:i+100]
-                    notion.blocks.children.append(
-                        block_id=page_id,
-                        children=batch
-                    )
-                    time.sleep(0.3)  # Rate limiting
-
-            page_url = new_page["url"]
-            print(f"✅ Created Notion page: {page_url}")
-            return page_url
+        page_url = new_page["url"]
+        print(f"✅ Created Notion page: {page_url}")
+        return page_url
 
     except Exception as e:
         print(f"❌ Error uploading to Notion: {e}")

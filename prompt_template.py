@@ -3,7 +3,7 @@ Template for weekly Granola summary following the 11-section structure.
 This will be used by Claude Code when generating the weekly summary.
 """
 
-WEEKLY_SUMMARY_INSTRUCTIONS = """You're reviewing a week's worth of meeting notes and transcripts from a Lead Product Manager at Intelligems. Your job is to extract only the most meaningful and career-relevant highlights — this is not a status update or a full recap.
+WEEKLY_SUMMARY_INSTRUCTIONS = """You're reviewing a week's worth of meeting notes, transcripts, and Slack messages from a Lead Product Manager at Intelligems. Your job is to extract only the most meaningful and career-relevant highlights — this is not a status update or a full recap.
 
 The goal is to create a timeline entry someone could scan years later to trace strategic leadership, product thinking, and long-term impact.
 
@@ -26,10 +26,9 @@ The goal is to create a timeline entry someone could scan years later to trace s
 
 **Prioritization:**
 1. Feedback/decisions from Helen, Adam, or Drew (career-critical)
-2. Direct report moments with Hannah and Jerica (coaching, wins, challenges) - track for performance reviews
-3. Instances of guiding the data team (expanding influence)
-4. Strategic product decisions (especially with Adam)
-5. Operational improvements and process changes - how we work, team enablement, tools that increase impact (e.g., enabling Attention in Pylon for product insights)
+2. Instances of guiding the data team (expanding influence)
+3. Strategic product decisions (especially with Adam)
+4. Operational improvements and process changes - how we work, team enablement, tools that increase impact (e.g., enabling Attention in Pylon for product insights)
 
 🧠 Principles
 
@@ -45,11 +44,13 @@ The goal is to create a timeline entry someone could scan years later to trace s
 
 - **BUT: Always include every feature worked on. Always include every internal collaboration (every colleague you met with). Always include every customer call in the Customer Call Tracker.** Keep these sections comprehensive even if individual bullets are brief.
 
+- **Use Slack context**: Review ALL Slack messages alongside meeting notes. Slack messages often contain important context that meetings don't capture—decisions made asynchronously, announcements, follow-up discussions, wins shared in channels, questions asked, or feedback given. When Slack messages provide relevant information, you MUST reference them in your summary. Include Slack message links just like meeting links. If a Slack message is the primary source for a highlight, use it as the source link.
+
 - **Ultra-concise bullets**: 2 sentences maximum. 1 sentence is better. Get straight to the point—what happened and why it matters. Cut all filler words and unnecessary context.
 
 - **Scannable tone**: Write conversationally, like you're telling a friend about your week. Avoid corporate jargon and overly formal language. Make it easy to skim.
 
-- Include a link to the source note at the end of each bullet: `([Meeting Name](https://notes.granola.ai/link))`
+- Include a link to the source note or Slack message at the end of each bullet: `([Meeting Name](https://notes.granola.ai/link))` or `([Slack Message](https://app.slack.com/client/...))`. When referencing Slack messages, use the channel name or "DM with [Name]" as the link text.
 
 📝 High-Level Summary (REQUIRED)
 
@@ -108,12 +109,6 @@ Capture both explicit and implicit feedback from key stakeholders (especially He
 
 - **[Topic]** → [What happened? Include direct quote if explicit feedback. For implicit, describe the signal and what it suggests—whether positive (trust, deference) or critical (concern, pushback, hesitation). 1-2 sentences.] ([Meeting Name](https://notes.granola.ai/link))
 
-### 👥 Direct Reports Feedback Moments
-
-Track notable moments with direct reports (Hannah and Jerica) worth remembering for performance reviews. Include both positive highlights (wins, growth, strong work, initiative) and areas for coaching (mistakes, resistance, skill gaps, behavioral issues). Be specific and objective—what happened, how they responded, what it reveals about their performance and development needs. 2 sentences max.
-
-- **[Name - Topic]** → [What happened and why it matters for their development or review? Include both context and your assessment. 1-2 sentences.] ([Meeting Name](https://notes.granola.ai/link))
-
 ### ⚔️ Conflict / Intense Debate Moments
 
 Meaningful disagreements or debates that shifted direction. 2 sentences max.
@@ -164,13 +159,14 @@ Include Weekly Team Meeting and Tech Team Retro (if happened). Focus on key deci
 - **Communication Summary exception**: This section has 2-3 sentences for style analysis + 1 specific actionable tip. No meeting links needed here—it's a meta-reflection on the week."""
 
 
-def get_summary_prompt_for_meetings(meetings):
+def get_summary_prompt_for_meetings(meetings, slack_messages=None):
     """
-    Format the meetings data into a prompt for Claude Code to generate the summary.
+    Format the meetings data and Slack messages into a prompt for Claude Code to generate the summary.
 
     Args:
         meetings: List of meeting dicts with keys: id, title, date, url, notes, transcript,
                   has_external_attendees, attendee_count
+        slack_messages: Optional list of Slack message dicts with keys: channel_name, timestamp, text, user, permalink
 
     Returns:
         str: Formatted prompt string
@@ -194,15 +190,157 @@ def get_summary_prompt_for_meetings(meetings):
             meetings_text += f"**Transcript:**\n{meeting['transcript']}\n\n"
 
         meetings_text += "---\n"
+    
+    slack_text = ""
+    if slack_messages:
+        for i, msg in enumerate(slack_messages, 1):
+            channel_name = msg.get('channel_name', 'Unknown')
+            # Format channel name for display
+            if channel_name.startswith('DM with '):
+                display_name = channel_name
+            else:
+                display_name = f"#{channel_name}"
+            
+            slack_text += f"\n\n## Slack Message {i}: {display_name}\n"
+            slack_text += f"Date: {msg.get('timestamp', 'Unknown')}\n"
+            slack_text += f"Channel: {display_name}\n"
+            slack_text += f"User: {msg.get('user', 'Unknown')}\n"
+            slack_text += f"Slack Link: {msg.get('permalink', '')}\n\n"
+            slack_text += f"**Message:**\n{msg.get('text', '')}\n\n"
+            slack_text += "---\n"
+
+    data_section = f"# Meeting Data for This Week\n\n{meetings_text}"
+    if slack_text:
+        data_section += f"\n\n# Slack Messages for This Week\n\n{slack_text}"
 
     return f"""{WEEKLY_SUMMARY_INSTRUCTIONS}
 
 ---
 
-# Meeting Data for This Week
-
-{meetings_text}
+{data_section}
 
 ---
 
-Please analyze the above meetings and generate a summary following the exact template structure above."""
+Please analyze the above meetings and Slack messages and generate a summary following the exact template structure above.
+
+**Important**: If Slack messages are provided, you must review them and incorporate relevant information into your summary. Slack messages are just as valid a source as meeting notes—use them when they provide context, decisions, announcements, or notable moments."""
+
+
+DIRECT_REPORTS_PROMPT = """You're reviewing a week's worth of meeting notes, transcripts, and Slack messages from a Lead Product Manager at Intelligems. Your job is to extract notable moments with direct reports (Hannah and Jerica) that are worth remembering for performance reviews.
+
+The goal is to create a running list of feedback moments that can be scanned during review time to provide specific, objective examples of performance, growth, and development needs.
+
+📋 Direct Reports Context
+
+**Hannah** - Product Manager, Kate's first direct report
+- Track all mentorship, coaching, wins, growth, challenges, and behavioral observations
+- Focus on moments that reveal performance patterns, skill development, and areas for coaching
+
+**Jerica** - Product Manager, newer direct report
+- Track development progress, wins, coaching opportunities, and performance indicators
+- Focus on growth trajectory and areas needing support
+
+🧠 Principles
+
+- **Performance review mindset**: Extract moments that would be useful when writing performance reviews or having development conversations. Think: "What specific examples would help me give concrete feedback?"
+
+- **Include both positive and developmental moments:**
+  - **Wins**: Achievements, strong work, successful outcomes, positive impact
+  - **Growth**: Demonstrations of improvement, new capabilities, learning moments
+  - **Initiative**: Proactive actions, taking ownership, going above and beyond
+  - **Coaching**: Areas for development, feedback given, skill gaps, learning opportunities
+  - **Challenge**: Mistakes, resistance, behavioral issues, performance concerns
+
+- **Be specific and objective**: What happened, how they responded, what it reveals about their performance and development needs. Include context and your assessment.
+
+- **Ultra-concise**: 2 sentences maximum. 1 sentence is better. Get straight to the point.
+
+- **Include source links**: Add a link to the source note or Slack message at the end of each entry: `([Meeting Name](https://notes.granola.ai/link))` or `([Slack Message](https://app.slack.com/client/...))`
+
+- **Use Slack context**: Review ALL Slack messages alongside meeting notes. Slack messages often reveal direct report moments that happened asynchronously—wins shared in channels, questions asked, feedback given, or notable interactions. When Slack messages provide information about direct report performance, growth, or coaching moments, you MUST include them in your entries. Use Slack message links as source links when the Slack message is the primary source.
+
+📝 Output Format (Markdown Format – Use Exactly)
+
+For each notable moment, format as:
+
+- **[Tag] [Name - Topic]** → [What happened and why it matters for their development or review? Include both context and your assessment. 1-2 sentences.] ([Meeting Name](https://notes.granola.ai/link))
+
+**Tag Categories:**
+- `[Win]` - Positive highlights, achievements, strong work
+- `[Coaching]` - Areas for development, feedback given, skill gaps
+- `[Growth]` - Demonstrations of improvement, new capabilities
+- `[Challenge]` - Mistakes, resistance, behavioral issues
+- `[Initiative]` - Proactive actions, taking ownership
+
+**Important:**
+- Only include entries for Hannah and Jerica (filter out anyone else)
+- If there are no notable moments this week, output: "No notable direct report moments this week."
+- Use exact meeting titles from source data for link text
+- Be objective and specific—focus on observable behaviors and outcomes"""
+
+
+def get_direct_reports_prompt_for_meetings(meetings, slack_messages=None):
+    """
+    Format the meetings data and Slack messages into a prompt for generating direct reports feedback notes.
+
+    Args:
+        meetings: List of meeting dicts with keys: id, title, date, url, notes, transcript,
+                  has_external_attendees, attendee_count
+        slack_messages: Optional list of Slack message dicts with keys: channel_name, timestamp, text, user, permalink
+
+    Returns:
+        str: Formatted prompt string
+    """
+    meetings_text = ""
+    for i, meeting in enumerate(meetings, 1):
+        meetings_text += f"\n\n## Meeting {i}: {meeting['title']}\n"
+        meetings_text += f"Date: {meeting['date']}\n"
+        meetings_text += f"Granola Link: {meeting['url']}\n"
+
+        # Include attendee information
+        has_external = meeting.get('has_external_attendees', False)
+        attendee_count = meeting.get('attendee_count', 0)
+        meetings_text += f"Has External Attendees: {'Yes' if has_external else 'No'}\n"
+        meetings_text += f"Total Attendees: {attendee_count}\n\n"
+
+        if meeting.get('notes'):
+            meetings_text += f"**Notes:**\n{meeting['notes']}\n\n"
+
+        if meeting.get('transcript'):
+            meetings_text += f"**Transcript:**\n{meeting['transcript']}\n\n"
+
+        meetings_text += "---\n"
+    
+    slack_text = ""
+    if slack_messages:
+        for i, msg in enumerate(slack_messages, 1):
+            channel_name = msg.get('channel_name', 'Unknown')
+            # Format channel name for display
+            if channel_name.startswith('DM with '):
+                display_name = channel_name
+            else:
+                display_name = f"#{channel_name}"
+            
+            slack_text += f"\n\n## Slack Message {i}: {display_name}\n"
+            slack_text += f"Date: {msg.get('timestamp', 'Unknown')}\n"
+            slack_text += f"Channel: {display_name}\n"
+            slack_text += f"User: {msg.get('user', 'Unknown')}\n"
+            slack_text += f"Slack Link: {msg.get('permalink', '')}\n\n"
+            slack_text += f"**Message:**\n{msg.get('text', '')}\n\n"
+            slack_text += "---\n"
+
+    data_section = f"# Meeting Data for This Week\n\n{meetings_text}"
+    if slack_text:
+        data_section += f"\n\n# Slack Messages for This Week\n\n{slack_text}"
+
+    return f"""{DIRECT_REPORTS_PROMPT}
+
+---
+
+{data_section}
+
+---
+
+Please analyze the above meetings and Slack messages and extract all notable moments with Hannah and Jerica. Format each entry according to the template above with appropriate tags.
+
+**Important**: If Slack messages are provided, you must review them for direct report moments. Many direct report interactions happen in Slack (wins shared, questions asked, feedback given). Include these moments in your entries and use Slack message links as source links when appropriate."""

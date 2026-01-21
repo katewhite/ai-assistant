@@ -609,12 +609,14 @@ def get_week_label(start_date, end_date):
         end_date: datetime object
 
     Returns:
-        str: Formatted string like "Week of Nov 28 - Dec 5"
+        str: Formatted string like "Week of Jan 9 - Jan 16"
     """
-    # If same month, show "Week of Nov 28 - Dec 5"
-    # If different months, show "Week of Nov 28 - Dec 5"
-    start_str = start_date.strftime("%b %-d")
-    end_str = end_date.strftime("%b %-d")
+    # Format: "Week of Jan 9 - Jan 16"
+    # Use portable date formatting (remove leading zero from day)
+    start_day = start_date.day
+    end_day = end_date.day
+    start_str = start_date.strftime(f"%b {start_day}")
+    end_str = end_date.strftime(f"%b {end_day}")
     return f"Week of {start_str} - {end_str}"
 
 
